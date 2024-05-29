@@ -3,6 +3,16 @@ This library is for drawing UI on M5 devices with a single code.
 Draw labels and button guides without being aware of coordinates. Simply select the layout.
 
 # Quick start
+## Arduino IDE
+Download zip file from latest release and Add .ZIP library from Sketch > Include library on Arduino IDE.
+
+## PlatformIO
+Add the following to platformio.ini
+```ini
+lib_deps = https://github.com/nananauno/M5EasyUI.git
+```
+
+## Sample code
 This is an example for simply creating one UI label with "Hello!" string and located at center of the display.
 ```cpp
 #include <M5EasyUI.h>
