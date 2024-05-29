@@ -6,6 +6,9 @@ Draw labels and button guides without being aware of coordinates. Simply select 
 ## Arduino IDE
 Download zip file from latest release and Add .ZIP library from Sketch > Include library on Arduino IDE.
 
+And, ensure that you have installed the following dependecy from library manager:
+- M5Unified
+
 ## PlatformIO
 Add the following to platformio.ini
 ```ini
