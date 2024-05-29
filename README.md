@@ -17,7 +17,7 @@ void setup(){
   M5.begin(cfg);
 
   ui.begin(&M5.Display, true);
-  ui.setLayout(Layout::Horizontal);
+  ui.setLayout(Layout::HorizontalBox);
   ui.add(&label);
 }
 
