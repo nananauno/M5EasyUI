@@ -4,15 +4,13 @@ Draw labels and button guides without being aware of coordinates. Simply select 
 
 # Quick start
 ## Arduino IDE
-Download zip file from latest release and Add .ZIP library from Sketch > Include library on Arduino IDE.
-
-And, ensure that you have installed the following dependecy from library manager:
-- M5Unified
+Open library manager on Arduino IDE, search "M5EasyUI" and click INSTALL ALL.
 
 ## PlatformIO
-Add the following to platformio.ini
+Open libraries on PlatformIO, search "M5EasyUI" and click Add to Project.
+Or add the following to platformio.ini
 ```ini
-lib_deps = https://github.com/nananauno/M5EasyUI.git
+lib_deps = nananauno/M5EasyUI @ ^0.0.1
 ```
 
 ## Sample code
