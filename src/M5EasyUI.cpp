@@ -54,6 +54,7 @@ namespace NNN::M5EasyUI {
         this->h = 0;
         this->fgcolor = WHITE;
         this->bgcolor = BLACK;
+        this->labelBgcolor = BLACK;
     }
     // ----------------------------------------------------------------------------
     // Public functions for SimpleLabel class
@@ -73,6 +74,9 @@ namespace NNN::M5EasyUI {
     void SimpleLabel::setTextColor(int32_t fgcolor, int32_t bgcolor){
         this->fgcolor = fgcolor;
         this->bgcolor = bgcolor;
+    }
+    void SimpleLabel::setBackgroundColor(int32_t bgcolor){
+        this->labelBgcolor = bgcolor;
     }
     void SimpleLabel::setCoordinate(int32_t x, int32_t y, int32_t w, int32_t h){
         this->x = x;
@@ -101,11 +105,12 @@ namespace NNN::M5EasyUI {
     float SimpleLabel::getTextScale(){
         return this->scale;
     }
-    void SimpleLabel::draw(M5Canvas* canvas){
+    void SimpleLabel::draw(M5Canvas* canvas, int32_t offsetY){
         float textscale = this->scale;
         canvas->setTextColor(fgcolor, bgcolor);
         canvas->setTextWrap(true);
-        canvas->setClipRect(this->x, this->y, this->w, this->h);
+        canvas->setClipRect(this->x, this->y-offsetY, this->w, this->h);
+        canvas->fillRect(this->x, this->y-offsetY, this->w, this->h, this->labelBgcolor);
         // Autoscale
         if(this->layout == TextLayout::Center_W_AutoScale){
             int32_t textwidth = canvas->textWidth(this->text);
@@ -131,16 +136,25 @@ namespace NNN::M5EasyUI {
         }
         canvas->setTextSize(textscale);
         if(this->layout == TextLayout::Center_W_AutoScale || this->layout == TextLayout::Center){
-            canvas->drawCenterString(this->text, this->x+this->w/2, this->y+voffset);
+            canvas->drawCenterString(this->text, this->x+this->w/2, this->y+voffset-offsetY);
         }else if(this->layout == TextLayout::Right){
-            canvas->drawRightString(this->text, this->x+this->w, this->y+voffset);
+            canvas->drawRightString(this->text, this->x+this->w, this->y+voffset-offsetY);
         }else{
-            canvas->setCursor(this->x, this->y+voffset);
+            canvas->setCursor(this->x, this->y+voffset-offsetY);
             canvas->print(this->text);
         }
         canvas->setTextSize(1);
         canvas->clearClipRect();
         canvas->setTextColor(WHITE, BLACK);
+    }
+    bool SimpleLabel::isPressed(){
+        return this->press;
+    }
+    bool SimpleLabel::isReleased(){
+        return !this->press;
+    }
+    void SimpleLabel::setTouch(uint8_t state){
+        this->press = state;
     }
     // ----------------------------------------------------------------------------
     // Public functions for ScrollLabel class
@@ -178,7 +192,7 @@ namespace NNN::M5EasyUI {
             scrollPosition = index;
         }
     }
-    void ScrollLabel::draw(M5Canvas* canvas){
+    void ScrollLabel::draw(M5Canvas* canvas, int32_t offsetY){
         float textscale = this->scale;
 
         // Calculate max lines that can be displayed and start and end points of buffer
@@ -200,9 +214,9 @@ namespace NNN::M5EasyUI {
         }
 
         canvas->setTextWrap(true);
-        canvas->setClipRect(this->x, this->y, this->w, this->h);
+        canvas->setClipRect(this->x, this->y-offsetY, this->w, this->h);
         canvas->setTextSize(textscale);
-        canvas->setCursor(this->x, this->y);
+        canvas->setCursor(this->x, this->y-offsetY);
         for(uint8_t i=start; i<end; i++){
             canvas->println(this->getLine(i));
         }
@@ -260,15 +274,18 @@ namespace NNN::M5EasyUI {
         //  Check board and set PSRAM if board has PSRAM
         //  PSRAM is slower than SRAM. If using small screen it's better to not use PSRAM for sptite.
         //  I's necessary to use PSRAM for creating a sprite for M5Core2. 
-        lgfx::boards::board_t board = this->display->getBoard();
-        if(board == lgfx::boards::board_M5StackCore2) {
-            this->canvas.setPsram(true);
-        }else{
-            // No use PSRAM
-            this->canvas.setPsram(false);
+        //lgfx::boards::board_t board = this->display->getBoard();
+        //if(board == lgfx::boards::board_M5StackCore2) {
+        //    // PSRAM
+        //}else{
+        //    // No use PSRAM
+        //}
+        for(int i=0; i<M5EASYUI_MAX_CANVAS; i++){
+                this->canvas[i].setPsram(false);
+                this->canvas[i].createSprite(this->area.getWidth(), this->area.getHeight()/M5EASYUI_MAX_CANVAS);
         }
-        this->canvas.createSprite(this->area.getWidth(), this->area.getHeight());
-        //this->canvas.createSprite(this->display->width(), this->display->height());
+        //this->canvas.createSprite(this->area.getWidth(), this->area.getHeight());
+        // 面積に応じて高さを決める
         
         #ifdef M5EASYUI_ESP_CONSOLE
         // ESP console is used for adjusting UIs through Serial console.
@@ -339,6 +356,10 @@ namespace NNN::M5EasyUI {
         // Initialze NT Shell
         #endif
     }
+    void UI::begin(M5GFX* m5gfx, m5::Touch_Class* touch, bool enableConsole=true){
+        begin(m5gfx, enableConsole);
+        this->touch = touch;
+    }
     void UI::add(SimpleLabel* label){
         if(this->numLabels >= M5EASYUI_MAX_LABELS) return;
         this->labels[this->numLabels] = label;
@@ -369,9 +390,10 @@ namespace NNN::M5EasyUI {
         this->recalculateLimitedArea();
         this->recalculateCoordinate();
         // Create sprit according to the new limited area
-        this->canvas.deleteSprite();
-        this->canvas.createSprite(this->area.getWidth(), this->area.getHeight());
-        //this->canvas.createSprite(this->display->width(), this->display->height());
+        for(int i=0; i<M5EASYUI_MAX_CANVAS; i++){
+            this->canvas[i].deleteSprite();
+            this->canvas[i].createSprite(this->area.getWidth(), this->area.getHeight()/M5EASYUI_MAX_CANVAS);
+        }
     }
     void UI::setButtonGuide(ButtonGuide* btnGuide, bool visibility){
         this->btnGuide = btnGuide;
@@ -380,46 +402,56 @@ namespace NNN::M5EasyUI {
     void UI::update() {
         // Skip if no labels are registered
         //if(numLabels == 0) return;
+        if(this->touch != nullptr){
+            updateTouchState();
+        }
 
         // Setting up drawing
         display->startWrite();
-        canvas.fillScreen(BLACK);
-        canvas.setTextColor(WHITE, BLACK);
-        canvas.setTextSize(1);
 
-        //display->setClipRect(area.getX(), area.getY(), area.getWidth(), area.getHeight());
-        //display->setTextWrap(true, false);
+        for(int y=0; y<this->area.getHeight(); y+=canvas[0].height()){
+            canvas[canvasIndex].fillScreen(BLACK);
+            canvas[canvasIndex].setTextColor(WHITE, BLACK);
+            canvas[canvasIndex].setTextSize(1);
 
-        // Drawing labels
-        //uint8_t numLabelsDrawn = 0;
-        // Max number of labels can be drawing depends on Layout
-        // Limit labels if number of registered label exceeds number of labels can be drawing
-        /*if(layout == Layout::Footer || layout == Layout::Header){
-            // Max 2 labels
-            numLabelsDrawn = (numLabels < 2) ? numLabels : 2;
-        }else if(layout == Layout::Grid_2x2){
-            // Max 4 labels
-            numLabelsDrawn = (numLabels < 4) ? numLabels : 4;
-        }else{
-            numLabelsDrawn = numLabels;
-        }*/
-        for(int i=0; i<maxNumDrawing(); i++){
-            labels[i]->draw(&canvas);
+            //display->setClipRect(area.getX(), area.getY(), area.getWidth(), area.getHeight());
+            //display->setTextWrap(true, false);
+
+            // Drawing labels
+            //uint8_t numLabelsDrawn = 0;
+            // Max number of labels can be drawing depends on Layout
+            // Limit labels if number of registered label exceeds number of labels can be drawing
+            /*if(layout == Layout::Footer || layout == Layout::Header){
+                // Max 2 labels
+                numLabelsDrawn = (numLabels < 2) ? numLabels : 2;
+            }else if(layout == Layout::Grid_2x2){
+                // Max 4 labels
+                numLabelsDrawn = (numLabels < 4) ? numLabels : 4;
+            }else{
+                numLabelsDrawn = numLabels;
+            }*/
+            
+            for(int i=0; i<maxNumDrawing(); i++){
+            
+                labels[i]->draw(&canvas[canvasIndex], y);
+            }
+
+            //display->clearClipRect();
+
+            // ButtonGuide
+            if(isButtonGuideOn()){
+                drawButtonGuide(&canvas[canvasIndex], y);
+            }
+
+            // Debug
+            if(debugLevel == DebugLevel::OUTLINE){
+                drawOutline(&canvas[canvasIndex], y);
+            }
+
+            canvas[canvasIndex].pushSprite(display, area.getX(), area.getY()+y);
+            // canvasIndexの0と1を入れ替える処理を追加
+            canvasIndex = (canvasIndex + 1) % M5EASYUI_MAX_CANVAS;
         }
-
-        //display->clearClipRect();
-
-        // ButtonGuide
-        if(isButtonGuideOn()){
-            drawButtonGuide();
-        }
-
-        // Debug
-        if(debugLevel == DebugLevel::OUTLINE){
-            drawOutline();
-        }
-
-        canvas.pushSprite(display, area.getX(), area.getY());
         //canvas.pushSprite(display, 0, 0);
         display->endWrite();
     }
@@ -456,7 +488,9 @@ namespace NNN::M5EasyUI {
     void UI::esp_console_cmd_labels(int argc, char **argv){
         printf("Screen: %dx%d\n", this->display->width(), this->display->height());
         printf("Limited area: (%d,%d) - (%d,%d), isRounded: %d\n", this->area.getX(), this->area.getY(), this->area.getWidth(), this->area.getHeight(), this->area.Rounded());
-        printf("Canvas: %dx%d\n", this->canvas.width(), this->canvas.height());
+        for(int i=0; i<M5EASYUI_MAX_CANVAS; i++){
+            printf("Canvas[%d]: %dx%d\n", i, this->canvas[i].width(), this->canvas[i].height());
+        }
         printf("Layout: %d\n", this->layout);
         for(int i=0; i<this->numLabels; i++){
             printf("Label[%d] %s\n", i, this->labels[i]->getText());
@@ -551,6 +585,7 @@ namespace NNN::M5EasyUI {
         }
         return numLabelsDrawn;
     }
+    /*
     void UI::drawLabel(SimpleLabel* label){
         float textscale = label->getTextScale();
         canvas.setTextWrap(true);
@@ -577,30 +612,29 @@ namespace NNN::M5EasyUI {
         }
         canvas.setTextSize(1);
         canvas.clearClipRect();
-    }
+    }*/
     void UI::drawButtonIcon(SimpleLabel* label){
-        canvas.setColor(WHITE);
-        canvas.fillTriangle(label->getX()+label->getWidth()/2, label->getY()+label->getHeight()-3,
-                            label->getX()+label->getWidth()/2-10, label->getY()+label->getHeight()/2+5,
-                            label->getX()+label->getWidth()/2+10, label->getY()+label->getHeight()/2+5, WHITE);
+        //canvas.setColor(WHITE);
+        //canvas.fillTriangle(label->getX()+label->getWidth()/2, label->getY()+label->getHeight()-3,
+        //                    label->getX()+label->getWidth()/2-10, label->getY()+label->getHeight()/2+5,
+        //                    label->getX()+label->getWidth()/2+10, label->getY()+label->getHeight()/2+5, WHITE);
     }
-    void UI::drawButtonGuide(){
+    void UI::drawButtonGuide(M5Canvas* canvas, int32_t offsetY){
         using namespace lgfx::boards;
         for(int i=0; i<M5EASYUI_MAX_BUTTON_LABELS; i++){
             SimpleLabel* label = btnGuide->getLabel(i);
             if(label == nullptr) continue;
-            drawLabel(label);
+            //drawLabel(label);
+            label->draw(canvas, offsetY);
             drawButtonIcon(label);
         }
     }
-    void UI::drawOutline() {
-        canvas.setColor(RED);
-        ///canvas.drawRect(area.getX()+1, area.getY()+1, area.getWidth()-2, area.getHeight()-2);
-        canvas.drawRect(1, 1, area.getWidth()-2, area.getHeight()-2);
-        canvas.setColor(GREEN);
+    void UI::drawOutline(M5Canvas* canvas, int32_t offsetY) {
+        canvas->setColor(RED);
+        canvas->drawRect(1, 1-offsetY, area.getWidth()-2, area.getHeight()-2);
+        canvas->setColor(GREEN);
         for(int i=0; i<maxNumDrawing(); i++){
-            canvas.drawRect(labels[i]->getX()+2, labels[i]->getY()+2, labels[i]->getWidth()-4, labels[i]->getHeight()-4);
-            //canvas.drawRect(2, 2, labels[i]->getWidth()-4, labels[i]->getHeight()-4);
+            canvas->drawRect(labels[i]->getX()+2, labels[i]->getY()+2-offsetY, labels[i]->getWidth()-4, labels[i]->getHeight()-4);
         }
     }
     void UI::recalculateCoordinate(){
@@ -695,6 +729,18 @@ namespace NNN::M5EasyUI {
         }else{
             // Normal screen
             this->area.updateArea(0, 0, this->display->width(), this->display->height(), isRounded);
+        }
+    }
+    void UI::updateTouchState(){
+        auto touchDetail = this->touch->getDetail();
+        for(int i=0; i<numLabels; i++){
+            if(touchDetail.isPressed() && labels[i]->getX()+area.getX() <= touchDetail.x && touchDetail.x <= labels[i]->getX()+labels[i]->getWidth()+area.getX() &&
+               labels[i]->getY()+area.getY() <= touchDetail.y && touchDetail.y <= labels[i]->getY()+labels[i]->getHeight()+area.getY()){
+                labels[i]->setTouch(1);
+                //Serial.printf("Touch (%d,%d), Label[%d] (%d,%d,%d,%d), Area (%d,%d,%d,%d)\n", touchDetail.x, touchDetail.y, i, labels[i]->getX(), labels[i]->getY(), labels[i]->getWidth(), labels[i]->getHeight(), area.getX(), area.getY(), area.getWidth(), area.getHeight());
+            }else{
+                labels[i]->setTouch(0);
+            }
         }
     }
 }  // namespace NNN::M5EasyUI

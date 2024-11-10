@@ -8,6 +8,7 @@
 //#define M5EASYUI_DEBUG
 #define M5EASYUI_MAX_LABELS 5           // Maximum number of labels that can be displayed in UI class
 #define M5EASYUI_MAX_BUTTON_LABELS 3    // Maximum number of buttons that can be displayed in ButtonGuide class
+#define M5EASYUI_MAX_CANVAS 2           // Maximum number of canvas used for drawing UIs
 //#define M5EASYUI_MAX_SCROLL_LINE 25   // Maximum number of lines that can be displayed in ScrollLabel class
 #define M5EASYUI_ESP_CONSOLE            // Enable ESP console
 //#define M5EASYUI_NT_SHELL             // Enable NT-Shell
@@ -72,6 +73,7 @@ namespace NNN::M5EasyUI{
             void setTextValignment(TextValignment);
             void setTextScale(float);
             void setTextColor(int32_t, int32_t);
+            void setBackgroundColor(int32_t);
             virtual void setCoordinate(int32_t, int32_t, int32_t, int32_t);
             int32_t getX();
             int32_t getY();
@@ -80,7 +82,10 @@ namespace NNN::M5EasyUI{
             const char* getText();
             TextLayout getTextLayout();
             float getTextScale();
-            virtual void draw(M5Canvas*);
+            virtual void draw(M5Canvas*, int32_t);
+            bool isPressed();
+            bool isReleased();
+            void setTouch(uint8_t state);
         protected:
             const char* text;           // Text of this label
             TextLayout layout;          // Text horizontal layout of this label
@@ -88,6 +93,8 @@ namespace NNN::M5EasyUI{
             float scale;                // Text scale (Default: 1.0)
             int32_t x,y,w,h;            // Drawing are of this label
             int32_t fgcolor, bgcolor;   // Text color and background color of this label
+            int32_t labelBgcolor;       // Background color of this label
+            uint8_t press;              // Flag of press
         private:
             // None
     };
@@ -109,7 +116,7 @@ namespace NNN::M5EasyUI{
             void scrollTo(uint8_t);
             //void scrollEnd();
             //void setCoordinate(int32_t, int32_t, int32_t, int32_t) override;
-            void draw(M5Canvas*) override;
+            void draw(M5Canvas*, int32_t) override;
         private:
             std::vector<String> buffer;
             uint8_t maxLines;           // Maximum number of lines that can be stored in this label.
@@ -131,6 +138,7 @@ namespace NNN::M5EasyUI{
         public:
             UI();
             void begin(M5GFX*, bool);
+            void begin(M5GFX*, m5::Touch_Class*, bool);
             void setDebugLevel(DebugLevel);
             void setLayout(Layout);
             void setRotation(uint_fast8_t);
@@ -151,8 +159,10 @@ namespace NNN::M5EasyUI{
             #endif
         private:
             M5GFX* display;                 // M5 display
+            m5::Touch_Class* touch;         // M5 Touch
             lgfx::boards::board_t board;    // M5 board info
-            M5Canvas canvas;                // M5 canvas
+            M5Canvas canvas[M5EASYUI_MAX_CANVAS]; // M5 canvas
+            int32_t canvasIndex;            // Switch canvas while drawing
             LimitedArea area;               // Drawing area of UI
             LimitedArea btnArea;            // Drawing area of button guide
             Layout layout;                  // Label layout
@@ -172,14 +182,15 @@ namespace NNN::M5EasyUI{
 
             bool isButtonGuideOn();
             uint8_t maxNumDrawing();
-            void drawLabel(SimpleLabel*);
+            //void drawLabel(SimpleLabel*);
             //void drawScrollLabel(ScrollLabel*);
             void drawButtonIcon(SimpleLabel*);
-            void drawButtonGuide();
-            void drawOutline();
+            void drawButtonGuide(M5Canvas*, int32_t);
+            void drawOutline(M5Canvas*, int32_t);
             void recalculateCoordinate();
             void recalculateLimitedArea();
 
+            void updateTouchState();
     };
     extern UI ui;
 }
