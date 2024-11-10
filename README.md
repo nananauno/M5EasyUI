@@ -38,6 +38,7 @@ void loop(){
 }
 
 ```
+
 # Features
 - Draw UI labels on the various displays used by M5 devices without being aware of the coordinates.
 - Physical button guide (only for M5core2)
@@ -63,6 +64,12 @@ This method should be called once at the setup function.
 Console function allows you to adjust UI parameters through Serial console. Refer to "Adjusting UI parameters through Serial console" section.
 > [!NOTE]
 > If you set enable as true, Serial should not be used by M5Unified.
+
+### void begin(M5GFX* m5gfx, m5::Touch_Class* touch, bool enable);
+Call this method once at the setup function if you want to check touch state.
+- m5gfx: Pointer to M5.Display
+- touch: Pointer to M5.Touch
+- enable: ture: Console On, false: Console Off
 
 ### void setDebugLevel(DebugLevel level)
 Debug level controls show/hide outline of each label for debugging.
@@ -148,6 +155,48 @@ Set text scale.
 Set text foregound color and background color.
 - fgcolor: Foreground color of text.
 - bgcolor: Background color of text.
+You can set transparent text background by setting same color to fgcolor and bgcolor.
+
+### setBackgroundColor(int32_t bgcolor)
+Set background color of the label.
+- bgcolor: Background color of the label.
+
+### isPressed()
+Return true while the label is touched.
+
+This is an example for detecting touch on labels.
+```cpp
+#include <Arduino.h>
+#include <M5Unified.h>
+#include <M5EasyUI.h>
+
+using namespace NNN::M5EasyUI;
+SimpleLabel label1("Released", TextLayout::Center);
+
+void setup(){
+  auto cfg = M5.config();
+  cfg.serial_baudrate = 0;
+  M5.begin(cfg);
+  ui.begin(&M5.Display, &M5.Touch, true);
+  ui.setLayout(Layout::VerticalBox);
+  // Add a label to UI
+  label1.setTextScale(2.0f);
+  ui.add(&label1);
+}
+
+void loop(){
+  M5.update();
+  ui.update();
+  if(label1.isPressed()){
+    label1.setText("Pressed");
+  }else{
+    label1.setText("Released");
+  }
+}
+```
+
+### isReleased()
+Return true while the label is not touched.
 
 ## ScrollLabel
 ScrollLabel is a label with scrolling function. It has multiple line and allows you to scroll up/down.
